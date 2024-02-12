@@ -5,7 +5,7 @@ import com.example.twitter.exception.NotValidDataException
 import com.example.twitter.exception.UserNotFoundException
 import com.example.twitter.model.User
 import com.example.twitter.repository.UserRepository
-import com.example.twitter.mapper.UserMapper
+import com.example.twitter.mapper.Mapper
 import com.example.twitter.service.UserService
 import com.example.twitter.util.SecurityUtil
 import com.example.twitter.util.SuccessResponse
@@ -16,13 +16,13 @@ import org.springframework.stereotype.Service
 @Service
 class UserServiceImpl implements UserService {
     private UserRepository userRepository
-    private UserMapper userMapper
+    private Mapper mapper
     private SecurityUtil securityUtil
     private UserUtil userUtil
 
-    UserServiceImpl(UserRepository userRepository, UserMapper userMapper, SecurityUtil securityUtil, UserUtil userUtil) {
+    UserServiceImpl(UserRepository userRepository, Mapper userMapper, SecurityUtil securityUtil, UserUtil userUtil) {
         this.userRepository = userRepository
-        this.userMapper = userMapper
+        this.mapper = userMapper
         this.securityUtil = securityUtil
         this.userUtil = userUtil
     }
@@ -33,15 +33,14 @@ class UserServiceImpl implements UserService {
                 userUtil.userAlreadyExistsByNikName(userDto.nikName())) {
             throw new NotValidDataException()
         }
-        var user = userMapper.toModel(userDto)
-        var savedUser = userRepository.save(user)
+        def user = mapper.toModel(userDto)
+        def savedUser = userRepository.save(user)
         return savedUser.id
     }
 
     @Override
     SuccessResponse delete(String id) {
-        var userId = securityUtil.getCurrentUserId()
-        if (userId == id) {
+        if (securityUtil.getCurrentUserId() == id) {
             var user = userRepository.findById(id)
             user.ifPresentOrElse({ u -> userRepository.delete(u) },
                     { -> throw new UserNotFoundException() })
@@ -53,16 +52,18 @@ class UserServiceImpl implements UserService {
 
     @Override
     void update(String id, UserRequestDto userDto) {
-        var userId = securityUtil.getCurrentUserId()
-        var user = userRepository.findById(id)
-        user.ifPresentOrElse({ u ->
-            u.setUsername(userDto.username())
-            u.setPassword(userDto.password())
+        if (securityUtil.getCurrentUserId() == id) {
+            def currentUser = userRepository.findById(id)
+            currentUser.ifPresentOrElse({ user ->
+                user.setUsername(userDto.username())
+                user.setPassword(userDto.password())
 
-            userRepository.save(u)
-        },
-                { -> throw new UserNotFoundException() })
-
+                userRepository.save(user)
+            },
+                    { -> throw new UserNotFoundException() })
+        } else {
+            throw new AccessDeniedException("Account does not belong to user")
+        }
     }
 
     @Override
@@ -70,13 +71,29 @@ class UserServiceImpl implements UserService {
         return userRepository.findById(id).get() ?: { throw new UserNotFoundException() }()
     }
 
+    @Override
+    SuccessResponse subscribeUser(String subscriptionUserId) {
+        def currentUser = userRepository.findById(securityUtil.getCurrentUserId()).get()
+        def subscriptionUser = userRepository.findById(subscriptionUserId)
+        if (subscriptionUser.isPresent()) {
+            currentUser.getSubscription().add(subscriptionUser.get())
+            userRepository.save(currentUser)
+            return new SuccessResponse("Subscription user was subscribed")
+        } else {
+            return new SuccessResponse("User not found")
+        }
+    }
 
-//    @Override
-//    @Transactional
-//    UserResponseDto findByEmail(String email) {
-//        def user = userRepository.findByUsername(email) ?: { throw new UserNotFoundException() }()
-//        return userMapper.toResponseDto(user.get());
-//    }
-
-
+    @Override
+    SuccessResponse unsubscribeUser(String subscriptionUserId) {
+        def currentUser = userRepository.findById(securityUtil.getCurrentUserId()).get()
+        def subscriptionUser = userRepository.findById(subscriptionUserId)
+        if (subscriptionUser.isPresent()) {
+            currentUser.getSubscription().remove(subscriptionUser.get())
+            userRepository.save(currentUser)
+            return new SuccessResponse("Subscription user was unsubscribed")
+        } else {
+            return new SuccessResponse("User not found")
+        }
+    }
 }

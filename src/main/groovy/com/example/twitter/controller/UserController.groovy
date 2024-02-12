@@ -4,6 +4,7 @@ import com.example.twitter.dto.request.UserRequestDto
 import com.example.twitter.dto.response.UserResponseDto
 import com.example.twitter.service.UserService
 import com.example.twitter.util.SecurityUtil
+import com.example.twitter.util.SuccessResponse
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -40,10 +41,16 @@ class UserController {
         return userService.update(id, userDto)
     }
 
+    @PatchMapping("/subscribe/{id}")
+    @PreAuthorize("hasRole('USER')")//
+    SuccessResponse subscribeUser(@PathVariable("id") String id) {
+        return userService.subscribeUser(id)
+    }
 
-//    @GetMapping("/{email}")
-//    UserResponseDto getUserByEmail(@PathVariable("email") String email) {
-//        println userService.findByEmail(email).toString()
-//        return userService.findByEmail(email)
-//    }
+    @PatchMapping("/unsubscribe/{id}")
+    @PreAuthorize("hasRole('USER')")//
+    SuccessResponse unSubscribeUser(@PathVariable("id") String id) {
+        return userService.unsubscribeUser(id)
+    }
+
 }

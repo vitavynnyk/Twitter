@@ -8,19 +8,17 @@ import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.mongodb.core.mapping.Document
 import org.springframework.data.mongodb.core.mapping.DocumentReference
+import org.springframework.data.repository.cdi.Eager
 
 import javax.validation.constraints.NotNull
 
 @Document
 @Builder
-@NoArgsConstructor
 @AllArgsConstructor
 class User {
     @Id
     String id
 
-
-//    @Indexed(unique = true)
     @NotNull
     String username
 
@@ -30,15 +28,23 @@ class User {
     @NotNull
     String nikName
 
+    @NotNull
     Boolean isActive
 
+    @NotNull
     Set<AuthorityType> roles
 
     @DocumentReference
     Set<Post> ownPosts
 
+    @DocumentReference
+    Set<Post> favoritePost
+
+    @DocumentReference
     Set<User> subscription
 
+//    @DocumentReference
+//    Set<Post> receivedPosts
 
 
 
@@ -48,7 +54,11 @@ class User {
                 "id='" + id + '\'' +
                 ", username='" + username + '\'' +
                 ", password='" + password + '\'' +
+                ", nikName='" + nikName + '\'' +
+                ", isActive=" + isActive +
                 ", roles=" + roles +
+                ", ownPosts=" + ownPosts +
+                ", subscription=" + subscription +
                 '}'
     }
 

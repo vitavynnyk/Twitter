@@ -6,5 +6,7 @@ import org.springframework.data.mongodb.repository.MongoRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface PostRepository extends MongoRepository<Post, String> {
+interface CommentRepository extends MongoRepository<Comment, String> {
+    List<Comment> findAllByPostId ( String id)
+
 }

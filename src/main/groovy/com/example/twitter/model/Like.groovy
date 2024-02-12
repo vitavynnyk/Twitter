@@ -6,40 +6,32 @@ import lombok.NoArgsConstructor
 import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.mapping.Document
 import org.springframework.data.mongodb.core.mapping.DocumentReference
+
 import javax.validation.constraints.NotNull
 import java.time.Instant
 
 @Document
 @Builder
 @AllArgsConstructor
-class Post {
+class Like {
     @Id
     String id
 
-    @NotNull
     @DocumentReference
     User user
-    @NotNull
-    String content
-    @NotNull
-    Instant creatingDate
 
     @DocumentReference
-    List<Comment> comments
-
-    @DocumentReference
-    Set<Like> like
+    Post post
 
     boolean equals(o) {
         if (this.is(o)) return true
         if (o == null || getClass() != o.class) return false
 
-        Post post = (Post) o
+        Like like = (Like) o
 
-        if (content != post.content) return false
-        if (creatingDate != post.creatingDate) return false
-        if (id != post.id) return false
-        if (user != post.user) return false
+        if (id != like.id) return false
+        if (post != like.post) return false
+        if (user != like.user) return false
 
         return true
     }
@@ -48,8 +40,7 @@ class Post {
         int result
         result = (id != null ? id.hashCode() : 0)
         result = 31 * result + (user != null ? user.hashCode() : 0)
-        result = 31 * result + (content != null ? content.hashCode() : 0)
-        result = 31 * result + (creatingDate != null ? creatingDate.hashCode() : 0)
+        result = 31 * result + (post != null ? post.hashCode() : 0)
         return result
     }
 }

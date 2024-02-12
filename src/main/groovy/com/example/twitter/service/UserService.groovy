@@ -15,7 +15,10 @@ interface UserService {
 
     User findById(String id)
 
-//    UserResponseDto findByEmail(String email)
+    SuccessResponse subscribeUser(String subscriptionUserId)
+
+    SuccessResponse unsubscribeUser(String subscriptionUserId)
+
 
 
 
