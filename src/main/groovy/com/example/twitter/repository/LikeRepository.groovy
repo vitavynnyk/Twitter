@@ -7,6 +7,10 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface LikeRepository extends MongoRepository<Like, String> {
-    Optional<Like> findByPostId(String postId)
+    List<Like> findByPostId(String postId)
+
+    Optional<Like> findByUserId(String userId)
+
+    void deleteByPostId(String id)
 
 }

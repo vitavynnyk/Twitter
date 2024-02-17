@@ -33,7 +33,7 @@ class CustomUserDetailsService implements UserDetailsService {
 
         return userDetailsBuilder
                 .password(user.get().getPassword())
-                .username(user.get().id)
+//                .username(user.get().id)
                 .disabled(!user.get().isActive)
                 .roles(roles)
                 .build()

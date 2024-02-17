@@ -6,7 +6,6 @@ import com.example.twitter.dto.response.CommentResponseDto
 import com.example.twitter.dto.response.PostResponseDto
 import com.example.twitter.exception.PostNotFoundException
 import com.example.twitter.mapper.Mapper
-import com.example.twitter.model.Comment
 import com.example.twitter.model.User
 import com.example.twitter.repository.CommentRepository
 import com.example.twitter.repository.LikeRepository
@@ -17,7 +16,6 @@ import com.example.twitter.util.SecurityUtil
 import com.example.twitter.util.SuccessResponse
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 
 @Service
 class PostServiceImpl implements PostService {
@@ -28,6 +26,7 @@ class PostServiceImpl implements PostService {
     private UserRepository userRepository
     private CommentRepository commentRepository
     private LikeRepository likeRepository
+
 
     PostServiceImpl(PostRepository postRepository, Mapper mapper, SecurityUtil securityUtil,
                     UserRepository userRepository, CommentRepository commentRepository,
@@ -41,26 +40,21 @@ class PostServiceImpl implements PostService {
     }
 
     @Override
-    @Transactional
     PostResponseDto create(User user, PostRequestDto postRequestDto) {
         def createdPost = postRepository.save(mapper.toModel(user, postRequestDto))
+        println createdPost
         user.getOwnPosts().add(createdPost)
-//        userRepository.findAllBySubscription(user).each { subscription ->
-//            subscription.getReceivedPosts().add(createdPost)
-//            userRepository.save(subscription)
-//        }
         userRepository.save(user)
         return mapper.toDto(createdPost)
     }
 
     @Override
-    @Transactional
     PostResponseDto update(String id, PostRequestDto postRequestDto) {
         def post = postRepository.findById(id)
-        post.ifPresentOrElse({ p ->
-            if (p.user.id == securityUtil.getCurrentUserId()) {
-                p.setContent(postRequestDto.content())
-                postRepository.save(p)
+        post.ifPresentOrElse({
+            if (it.user.username == securityUtil.getCurrentUserName()) {
+                it.setContent(postRequestDto.content())
+                postRepository.save(it)
             } else {
                 throw new AccessDeniedException("Post does not belong to user")
             }
@@ -69,20 +63,16 @@ class PostServiceImpl implements PostService {
     }
 
     @Override
-    @Transactional
-    String delete(String id) { //TODO c delete в базе разобраться
-        var post = postRepository.findById(id)
-        var currentUser = userRepository.findById(securityUtil.getCurrentUserId()).get()
-        println userRepository.findAllBySubscription(currentUser)
-        if (post.isPresent()) {
-            if (post.get().user.id == securityUtil.getCurrentUserId()) {
-                currentUser.getOwnPosts().remove(post)
-                userRepository.save(currentUser)
+    SuccessResponse delete(String id) {
+        def post = postRepository.findById(id)
 
-//                userRepository.findAllBySubscription(currentUser).each { subscription ->
-//                    subscription.getReceivedPosts().remove(post)
-//                    userRepository.save(subscription)
-//                }
+        if (post.isPresent()) {
+            def currentUser = userRepository.findByUsername(securityUtil.getCurrentUserName())
+            if (post.get().user.username == securityUtil.getCurrentUserName()) {
+                currentUser.get().getOwnPosts().remove(post)
+                userRepository.save(currentUser.get())
+                likeRepository.deleteByPostId(id)
+                commentRepository.deleteByPostId(id)
                 postRepository.deleteById(id)
 
             } else {
@@ -108,25 +98,29 @@ class PostServiceImpl implements PostService {
     }
 
     @Override
-    @Transactional
     List<CommentResponseDto> getAllComments(String postId) {
-        return postRepository.findById(postId).get().getComments().stream()
-                .map(comment -> mapper.toDto(comment))
-                .toList()
+        def post = postRepository.findById(postId)
+        if (post.isPresent()) {
+            return post.get().getComments().stream()
+                    .map(comment -> mapper.toDto(comment))
+                    .toList()
+        } else {
+            throw new PostNotFoundException()
+        }
     }
 
     @Override
     SuccessResponse leaveLike(User user, String postId) {
         def post = postRepository.findById(postId)
         if (post.isPresent()) {
-            def isAlreadyLiked = post.get().getLike().stream()
-                    .filter { like -> like.user.id == user.id }
+            def isAlreadyLiked = post.get().getLikes().stream()
+                    .filter { it.user.id == user.id }
                     .findFirst().isPresent()
             if (isAlreadyLiked) {
                 return new SuccessResponse("You have already liked this post ")
             } else {
                 def like = likeRepository.save(mapper.toModel(user, post.get()))
-                post.get().getLike().add(like)
+                post.get().getLikes().add(like)
                 postRepository.save(post.get())
                 return new SuccessResponse("Like was added successfully")
             }
@@ -136,14 +130,17 @@ class PostServiceImpl implements PostService {
     }
 
     @Override
-    SuccessResponse removeLike(User user, String postId) {//TODO удалить юзера
+    SuccessResponse removeLike(User user, String postId) {
         def post = postRepository.findById(postId)
         if (post.isPresent()) {
-            def like = likeRepository.findByPostId(postId).get()// TODO надо конкретный лайк вернуть
-            post.get().getLike().remove(like)
-            likeRepository.delete(like)
-            postRepository.save(post.get())
-            return new SuccessResponse("Like was deleted successfully")
+            def like = likeRepository.findByUserId(user.id)
+
+            return like.map {
+                post.get().getLikes().remove(it)
+                likeRepository.delete(it)
+                postRepository.save(post.get())
+                new SuccessResponse("Like was deleted successfully")
+            }.orElse(new SuccessResponse("User did not leave like here"))
         } else {
             return new SuccessResponse("Post is not found")
         }
@@ -152,7 +149,7 @@ class PostServiceImpl implements PostService {
     @Override
     SuccessResponse addToFavorite(User user, String postId) {
         def post = postRepository.findById(postId)
-        def favoritePosts = user.getFavoritePost()
+        def favoritePosts = user.getFavoritePosts()
         if (post.isPresent()) {
             if (favoritePosts.contains(post.get())) {
                 return new SuccessResponse("This post is already in favorites")
@@ -170,7 +167,7 @@ class PostServiceImpl implements PostService {
     SuccessResponse removeFromFavorite(User user, String postId) {
         def post = postRepository.findById(postId)
         if (post.isPresent()) {
-            user.getFavoritePost().remove(post.get())
+            user.getFavoritePosts().remove(post.get())
             userRepository.save(user)
             return new SuccessResponse("Post was deleted from favorite successfully")
         } else {

@@ -43,7 +43,7 @@ class Mapper {
                 nikName: userDto.nikName(),
                 ownPosts: new HashSet<Post>(),
                 subscription: new HashSet<User>(),
-                favoritePost: new HashSet<Post>())
+                favoritePosts: new HashSet<Post>())
 
     }
 
@@ -52,17 +52,21 @@ class Mapper {
                 id: post.id,
                 content: post.content,
                 creatingDate: String.valueOf(post.creatingDate),
-                nikName: post.user.nikName)
+                authorId: post.user.id,
+                nikName: post.user.nikName,
+                comments: post.comments?.collect { toDto(it) } ?: [],
+                likesByUsers: post.likes?.collect { it.user?.id } ?: [] as List<String>)
+
 
     }
 
-    static Post toModel(User user, PostRequestDto postRequestDto) {
+     Post toModel(User user, PostRequestDto postRequestDto) {
         return new Post(
                 content: postRequestDto.content(),
                 creatingDate: Instant.now(),
                 user: user,
                 comments: new ArrayList<Comment>(),
-                like: new ArrayList<Like>())
+                likes: new ArrayList<Like>())
     }
 
     static Comment toModel(User user, CommentRequestDto commentRequestDto, Post post) {

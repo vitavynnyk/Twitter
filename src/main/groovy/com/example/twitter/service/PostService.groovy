@@ -14,7 +14,7 @@ interface PostService {
 
     PostResponseDto update(String id, PostRequestDto postRequestDto)
 
-    String delete(String id)
+    SuccessResponse delete(String id)
 
     SuccessResponse commentPost(User user, CommentRequestDto content, String postId)
 

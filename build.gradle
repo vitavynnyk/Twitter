@@ -28,9 +28,17 @@ dependencies {
     implementation 'org.apache.groovy:groovy'
     implementation group: 'javax.validation', name: 'validation-api', version: '2.0.1.Final'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation group: 'org.springdoc', name: 'springdoc-openapi-starter-webmvc-ui', version: '2.3.0'
+    testImplementation group: 'com.h2database', name: 'h2', version: '2.2.224'
+    testImplementation group: 'org.springframework.security', name: 'spring-security-test', version: '6.1.0'
+
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation group: 'org.spockframework', name: 'spock-core', version: '2.4-M1-groovy-4.0'
+
 
 }
 

@@ -38,7 +38,7 @@ class User {
     Set<Post> ownPosts
 
     @DocumentReference
-    Set<Post> favoritePost
+    Set<Post> favoritePosts
 
     @DocumentReference
     Set<User> subscription

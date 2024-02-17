@@ -28,7 +28,7 @@ class Post {
     List<Comment> comments
 
     @DocumentReference
-    Set<Like> like
+    Set<Like> likes
 
     boolean equals(o) {
         if (this.is(o)) return true

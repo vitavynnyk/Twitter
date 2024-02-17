@@ -1,9 +1,14 @@
 package com.example.twitter.service.impl
 
 import com.example.twitter.dto.request.UserRequestDto
+import com.example.twitter.dto.response.PostResponseDto
+import com.example.twitter.dto.response.UserResponseDto
 import com.example.twitter.exception.NotValidDataException
 import com.example.twitter.exception.UserNotFoundException
 import com.example.twitter.model.User
+import com.example.twitter.repository.CommentRepository
+import com.example.twitter.repository.LikeRepository
+import com.example.twitter.repository.PostRepository
 import com.example.twitter.repository.UserRepository
 import com.example.twitter.mapper.Mapper
 import com.example.twitter.service.UserService
@@ -19,12 +24,19 @@ class UserServiceImpl implements UserService {
     private Mapper mapper
     private SecurityUtil securityUtil
     private UserUtil userUtil
+    private LikeRepository likeRepository
+    private PostRepository postRepository
+    private CommentRepository commentRepository
 
-    UserServiceImpl(UserRepository userRepository, Mapper userMapper, SecurityUtil securityUtil, UserUtil userUtil) {
+    UserServiceImpl(UserRepository userRepository, Mapper mapper, SecurityUtil securityUtil, UserUtil userUtil,
+                    LikeRepository likeRepository, PostRepository postRepository, CommentRepository commentRepository) {
         this.userRepository = userRepository
-        this.mapper = userMapper
+        this.mapper = mapper
         this.securityUtil = securityUtil
         this.userUtil = userUtil
+        this.likeRepository = likeRepository
+        this.postRepository = postRepository
+        this.commentRepository = commentRepository
     }
 
     @Override
@@ -40,40 +52,50 @@ class UserServiceImpl implements UserService {
 
     @Override
     SuccessResponse delete(String id) {
-        if (securityUtil.getCurrentUserId() == id) {
-            var user = userRepository.findById(id)
-            user.ifPresentOrElse({ u -> userRepository.delete(u) },
-                    { -> throw new UserNotFoundException() })
+        def user = userRepository.findById(id)
+        if (user.isPresent()) {
+            if (securityUtil.getCurrentUserName() == (user.get().getUsername())) {
+                userRepository.delete(user.get())
+                return new SuccessResponse("User was deleted successfully")
+            } else {
+                throw new AccessDeniedException("Account does not belong to the current user")
+            }
         } else {
-            throw new AccessDeniedException("Account does not belong to user")
+            throw new UserNotFoundException()
         }
-        return new SuccessResponse("User was deleted successfully")
     }
 
     @Override
-    void update(String id, UserRequestDto userDto) {
-        if (securityUtil.getCurrentUserId() == id) {
-            def currentUser = userRepository.findById(id)
-            currentUser.ifPresentOrElse({ user ->
-                user.setUsername(userDto.username())
-                user.setPassword(userDto.password())
+    UserResponseDto update(String id, UserRequestDto userDto) {
+        def currentUserOptional = userRepository.findById(id)
+        if (currentUserOptional.isPresent()) {
+            def currentUser = currentUserOptional.get()
+            if (securityUtil.getCurrentUserName() == currentUser.getUsername()) {
+                currentUser.setUsername(userDto.username())
+                currentUser.setPassword(userDto.password())
+                currentUser.setNikName(userDto.nikName())
 
-                userRepository.save(user)
-            },
-                    { -> throw new UserNotFoundException() })
+                userRepository.save(currentUser)
+                return mapper.toResponseDto(currentUser)
+            } else {
+                throw new AccessDeniedException("Account does not belong to user")
+            }
         } else {
-            throw new AccessDeniedException("Account does not belong to user")
+            throw new UserNotFoundException()
         }
     }
 
     @Override
     User findById(String id) {
-        return userRepository.findById(id).get() ?: { throw new UserNotFoundException() }()
+        return userRepository.findByUsername(id)
+                .orElseThrow {
+                    new UserNotFoundException()
+                }
     }
 
     @Override
     SuccessResponse subscribeUser(String subscriptionUserId) {
-        def currentUser = userRepository.findById(securityUtil.getCurrentUserId()).get()
+        def currentUser = userRepository.findById(securityUtil.getCurrentUserName()).get()
         def subscriptionUser = userRepository.findById(subscriptionUserId)
         if (subscriptionUser.isPresent()) {
             currentUser.getSubscription().add(subscriptionUser.get())
@@ -86,7 +108,7 @@ class UserServiceImpl implements UserService {
 
     @Override
     SuccessResponse unsubscribeUser(String subscriptionUserId) {
-        def currentUser = userRepository.findById(securityUtil.getCurrentUserId()).get()
+        def currentUser = userRepository.findById(securityUtil.getCurrentUserName()).get()
         def subscriptionUser = userRepository.findById(subscriptionUserId)
         if (subscriptionUser.isPresent()) {
             currentUser.getSubscription().remove(subscriptionUser.get())
@@ -96,4 +118,55 @@ class UserServiceImpl implements UserService {
             return new SuccessResponse("User not found")
         }
     }
+
+    @Override
+    List<PostResponseDto> getOwnPosts(User user) {
+        return user.getOwnPosts().stream()
+                .map { mapper.toDto(it) }
+                .toList()
+    }
+
+    @Override
+    List<PostResponseDto> getLikedPosts(String id) {
+        return likeRepository.findByUserId(id).stream()
+                .map { mapper.toDto(postRepository.findByLikesContaining(it)) }
+                .toList()
+
+    }
+
+    @Override
+    List<PostResponseDto> getCommentedPosts(String id) {
+        return commentRepository.findByUserId(id).stream()
+                .map { mapper.toDto(postRepository.findByCommentsContaining(it)) }
+                .toList()
+    }
+
+    @Override
+    List<PostResponseDto> getFeed(String id) {
+        def list = new ArrayList<PostResponseDto>()
+        list.addAll(commentRepository.findByUserId(id)
+                .collect { postRepository.findByCommentsContaining(it) }
+                .findAll { it }
+                .collect { mapper.toDto(it) })
+
+        likeRepository.findByUserId(id).ifPresent { like ->
+            list.addAll(
+                    collect { postRepository.findByLikesContaining(like) }
+                            .findAll { it }
+                            .collect { mapper.toDto(it) })
+        }
+        list.addAll(userRepository.findById(id).get().getOwnPosts().stream()
+                .map { mapper.toDto(it) }
+                .toList())
+        return list
+    }
+
+    @Override
+    List<PostResponseDto> getSubscriptionFeed(User user) {
+        def subscriptions = user.getSubscription()
+        return subscriptions.stream()
+                .flatMap { getFeed(it.id).stream() }
+                .toList()
+    }
+
 }
