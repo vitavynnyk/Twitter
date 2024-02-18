@@ -296,7 +296,7 @@ class PostServiceTests extends Specification {
 
         then:
         1 * postRepository.findById(postId) >> Optional.of(post)
-        1 * likeRepository.findByUserId(userId) >> Optional.of(like)
+        1 * likeRepository.findByUser(user) >> Optional.of(like)
         1 * likeRepository.delete(_) >> { it }
         1 * postRepository.save(_) >> { it }
 
@@ -312,7 +312,7 @@ class PostServiceTests extends Specification {
 
         then:
         1 * postRepository.findById(postId) >> Optional.of(post)
-        1 * likeRepository.findByUserId(userId) >> Optional.empty()
+        1 * likeRepository.findByUser(user) >> Optional.empty()
 
         and:
         result instanceof SuccessResponse

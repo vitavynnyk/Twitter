@@ -43,11 +43,6 @@ class User {
     @DocumentReference
     Set<User> subscription
 
-//    @DocumentReference
-//    Set<Post> receivedPosts
-
-
-
     @Override
     String toString() {
         return "User{" +

@@ -32,8 +32,7 @@ dependencies {
     testImplementation group: 'com.h2database', name: 'h2', version: '2.2.224'
     testImplementation group: 'org.springframework.security', name: 'spring-security-test', version: '6.1.0'
 
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    testImplementation 'org.springframework.boot:spring-boot-starter-jdbc'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

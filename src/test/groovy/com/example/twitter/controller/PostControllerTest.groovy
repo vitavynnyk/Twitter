@@ -17,6 +17,8 @@ import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.test.context.support.WithMockUser
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.TestPropertySource
 import org.springframework.test.web.servlet.MockMvc
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
@@ -27,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @AutoConfigureTestDatabase
 @Import(Configuration)
+@ActiveProfiles("test")
 class PostControllerTest {
 
     @Autowired
@@ -502,15 +505,16 @@ class PostControllerTest {
     @Test
     @WithMockUser(roles = "USER", username = "Vita")
     void "should return HTTP status 200 when adding to favorite with already added post"() {
-
+        cleanup()
         given:
         def user = DtoCreator.createUserInDataBase()
         def post = postRepository.save(DtoCreator.createPost())
-        user.favoritePosts.add(post)
+        user.getFavoritePosts().add(post)
         userRepository.save(user)
+        println post.id
 
         when:
-        def result = mockMvc.perform(patch(POST_URL + "/123/favorite")
+        def result = mockMvc.perform(patch(POST_URL + "/" + post.id + "/favorite")
                 .contentType(MediaType.APPLICATION_JSON))
 
         then:

@@ -133,7 +133,7 @@ class PostServiceImpl implements PostService {
     SuccessResponse removeLike(User user, String postId) {
         def post = postRepository.findById(postId)
         if (post.isPresent()) {
-            def like = likeRepository.findByUserId(user.id)
+            def like = likeRepository.findByUser(user)
 
             return like.map {
                 post.get().getLikes().remove(it)

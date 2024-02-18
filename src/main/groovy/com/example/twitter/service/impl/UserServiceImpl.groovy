@@ -86,8 +86,15 @@ class UserServiceImpl implements UserService {
     }
 
     @Override
-    User findById(String id) {
-        return userRepository.findByUsername(id)
+    User findById(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow {
+                    new UserNotFoundException()
+                }
+    }
+    @Override
+    User findByUserId(String id) {
+        return userRepository.findById(id)
                 .orElseThrow {
                     new UserNotFoundException()
                 }
@@ -95,7 +102,7 @@ class UserServiceImpl implements UserService {
 
     @Override
     SuccessResponse subscribeUser(String subscriptionUserId) {
-        def currentUser = userRepository.findById(securityUtil.getCurrentUserName()).get()
+        def currentUser = userRepository.findByUsername(securityUtil.getCurrentUserName()).get()
         def subscriptionUser = userRepository.findById(subscriptionUserId)
         if (subscriptionUser.isPresent()) {
             currentUser.getSubscription().add(subscriptionUser.get())
@@ -108,7 +115,7 @@ class UserServiceImpl implements UserService {
 
     @Override
     SuccessResponse unsubscribeUser(String subscriptionUserId) {
-        def currentUser = userRepository.findById(securityUtil.getCurrentUserName()).get()
+        def currentUser = userRepository.findByUsername(securityUtil.getCurrentUserName()).get()
         def subscriptionUser = userRepository.findById(subscriptionUserId)
         if (subscriptionUser.isPresent()) {
             currentUser.getSubscription().remove(subscriptionUser.get())
@@ -127,16 +134,18 @@ class UserServiceImpl implements UserService {
     }
 
     @Override
-    List<PostResponseDto> getLikedPosts(String id) {
-        return likeRepository.findByUserId(id).stream()
+    List<PostResponseDto> getLikedPosts(String username) {
+        def user = userRepository.findByUsername(username).get()
+        return likeRepository.findByUser(user).stream()
                 .map { mapper.toDto(postRepository.findByLikesContaining(it)) }
                 .toList()
 
     }
 
     @Override
-    List<PostResponseDto> getCommentedPosts(String id) {
-        return commentRepository.findByUserId(id).stream()
+    List<PostResponseDto> getCommentedPosts(String username) {
+        def user = userRepository.findByUsername(username).get()
+        return commentRepository.findByUser(user).stream()
                 .map { mapper.toDto(postRepository.findByCommentsContaining(it)) }
                 .toList()
     }
@@ -144,18 +153,19 @@ class UserServiceImpl implements UserService {
     @Override
     List<PostResponseDto> getFeed(String id) {
         def list = new ArrayList<PostResponseDto>()
-        list.addAll(commentRepository.findByUserId(id)
+        def user = userRepository.findById(id).get()
+        list.addAll(commentRepository.findByUser(user)
                 .collect { postRepository.findByCommentsContaining(it) }
                 .findAll { it }
                 .collect { mapper.toDto(it) })
 
-        likeRepository.findByUserId(id).ifPresent { like ->
+        likeRepository.findByUser(user).ifPresent { like ->
             list.addAll(
                     collect { postRepository.findByLikesContaining(like) }
                             .findAll { it }
                             .collect { mapper.toDto(it) })
         }
-        list.addAll(userRepository.findById(id).get().getOwnPosts().stream()
+        list.addAll(user.getOwnPosts().stream()
                 .map { mapper.toDto(it) }
                 .toList())
         return list

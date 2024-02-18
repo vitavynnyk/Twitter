@@ -179,7 +179,7 @@ class UserServiceTests extends Specification {
 
         then:
         1 * securityUtil.getCurrentUserName() >> userId
-        1 * userRepository.findById(userId) >> Optional.of(user)
+        1 * userRepository.findByUsername(userId) >> Optional.of(user)
         1 * userRepository.findById(subscriptionUser.id) >> Optional.of(subscriptionUser)
         1 * userRepository.save(_) >> { it }
 
@@ -198,7 +198,7 @@ class UserServiceTests extends Specification {
 
         then:
         1 * securityUtil.getCurrentUserName() >> userId
-        1 * userRepository.findById(userId) >> Optional.of(user)
+        1 * userRepository.findByUsername(userId) >> Optional.of(user)
         1 * userRepository.findById(subscriptionUser.id) >> Optional.empty()
 
         expect:
@@ -216,13 +216,14 @@ class UserServiceTests extends Specification {
 
         then:
         1 * securityUtil.getCurrentUserName() >> userId
-        1 * userRepository.findById(userId) >> Optional.of(user)
+        1 * userRepository.findByUsername(userId) >> Optional.of(user)
         1 * userRepository.findById(subscriptionUser.id) >> Optional.of(subscriptionUser)
         1 * userRepository.save(_) >> { it }
 
         expect:
         result instanceof SuccessResponse
         result.message() == "Subscription user was unsubscribed"
+
     }
 
     def "unsubscribeUser method should return SuccessResponse with user not found "() {
@@ -235,7 +236,7 @@ class UserServiceTests extends Specification {
 
         then:
         1 * securityUtil.getCurrentUserName() >> userId
-        1 * userRepository.findById(userId) >> Optional.of(user)
+        1 * userRepository.findByUsername(userId) >> Optional.of(user)
         1 * userRepository.findById(subscriptionUser.id) >> Optional.empty()
 
         expect:
@@ -264,7 +265,8 @@ class UserServiceTests extends Specification {
         def result = userService.getLikedPosts(userId)
 
         then:
-        1 * likeRepository.findByUserId(userId) >> Optional.of(like)
+        1 * userRepository.findByUsername(userId) >> Optional.of(user)
+        1 * likeRepository.findByUser(user) >> Optional.of(like)
         1 * postRepository.findByLikesContaining(like) >> post
 
         result instanceof List<PostResponseDto>
@@ -280,7 +282,8 @@ class UserServiceTests extends Specification {
         def result = userService.getCommentedPosts(userId)
 
         then:
-        1 * commentRepository.findByUserId(userId) >> list
+        1 * userRepository.findByUsername(userId) >> Optional.of(user)
+        1 * commentRepository.findByUser(user) >> list
         1 * postRepository.findByCommentsContaining(comment) >> post
 
         result instanceof List<PostResponseDto>
@@ -298,9 +301,9 @@ class UserServiceTests extends Specification {
         def result = userService.getFeed(userId)
 
         then:
-        1 * commentRepository.findByUserId(userId) >> post.getComments()
+        1 * commentRepository.findByUser(user) >> post.getComments()
         1 * postRepository.findByCommentsContaining(comment) >> post
-        1 * likeRepository.findByUserId(userId) >> Optional.of(like)
+        1 * likeRepository.findByUser(user ) >> Optional.of(like)
         1 * postRepository.findByLikesContaining(like) >> post
         1 * userRepository.findById(userId) >> Optional.of(user)
 
